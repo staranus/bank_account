@@ -1,6 +1,5 @@
 import sqlite3
 
-
 class DbManager:
     def __init__(self, db_path):
         self.db_path = db_path
@@ -17,8 +16,13 @@ class DbManager:
                     return cursor.fetchall()
                 else:
                     return cursor.rowcount  # implementation for the account closure
+        except sqlite3.Error as e:
+            print(f"SQLite error: {e}")
+            return None
         except Exception as e:
             print(f"An error occurred: {e}")
+            print("SQL query:", query)
+            print("Query parameters:", params)
             return None
 
 
