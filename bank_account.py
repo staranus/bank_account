@@ -1,7 +1,7 @@
-import typing
+import datetime
+import re  # Import the regular expression library
 from main import db_manager
 import random
-import datetime
 
 
 class BankAccount:
@@ -28,22 +28,23 @@ class BankAccount:
             result = db_manager.execute_query(query, (account_number, pin_code), return_selection=True)
             if result:
                 # Unpack the result and exclude the first element (account_number) when creating the instance
-                account_instance = cls(*result[0][1:])
-                account_instance.account_number = account_number# Create an instance with retrieved data
+                account_instance = cls(*result[0])
+                 # Create an instance with retrieved data
                 print("\n Your current net balance =", account_instance.balance)
                 return account_instance
             else:
-                print(f"Account not found or pin_code is incorrect")
+                print(f"Account not found or pin code is incorrect")
         except Exception as e:
             print(f"Error in account_login: {type(e).__name__} - {e}")
 
-    def __add_new_user_account_to_db(self) -> typing.Tuple[int, int]:
+    def __add_new_user_account_to_db(self) -> tuple[str, int]:
         pin_code = random.randint(1000, 9999)
         db_manager.execute_query("""INSERT INTO bank_account (
                 full_name,email,address,phone_number, birth_date, pin_code) VALUES
                 (?,?,?,?,?,?)""", (
             self.full_name, self.email, self.address, self.phone_number, self.birth_date, pin_code))
 
+        #TODO-add parameters
         # Querying again after inserting the values in order to retrieve the auto-increment number of bank account
         account_number_query = f"SELECT account_number FROM bank_account WHERE email = '{self.email}'"
         account_number = db_manager.execute_query(account_number_query, return_selection=True)[0][0]
@@ -113,59 +114,52 @@ def create_table() -> None:
                 pin_code INT,
                 balance INTEGER DEFAULT 0)''', return_selection=True)
     # print(f"Table creation succeeded")
+    #db_manager.execute_query('''ALTER TABLE bank_account drop column unique_identifier ''')
 
 
+# TODO - check for types / use regex
 def create_new_account() -> tuple:
-    full_name = input("Enter full name: ")
-    email = input("Enter email: ")
-    address = input("Enter address: ")
-    phone_number = input("Enter phone number: ")
-    try:
-        birth_date = input("Enter birth date (YYYY-MM-DD): ")
-        datetime.strptime(birth_date, '%Y-%m-%d')
-        return True
-    except ValueError:
-        print("ValueError")
+    while True:
+        try:
+            full_name = input("Enter full name: ")
+            if not full_name:
+                raise ValueError("Full name cannot be empty")
+            break
+        except ValueError as e:
+            print(e)
+
+    while True:
+        email = input("Enter email: ")
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):  
+            print("Invalid email format. Please try again.")
+        else:
+            break
+
+    while True:
+        try:
+            address = input("Enter address: ")
+            if not address:
+                raise ValueError("Address cannot be empty")
+            break
+        except ValueError as e:
+            print(e)
+
+    while True:
+        try:
+            phone_number = input("Enter phone number: ")
+            if not phone_number.isdigit():
+                raise ValueError("Phone number must contain only digits")
+            break
+        except ValueError as e:
+            print(e)
+
+    while True:
+        try:
+            birth_date_string = input("Enter birth date (YYYY-MM-DD): ")
+            birth_date = datetime.datetime.strptime(birth_date_string, '%Y-%m-%d')
+            break
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD format.")
+
     return full_name, email, address, phone_number, birth_date
-
-
-def user_menu():
-    print('''
-    Welcome to the Bank Account application
-    ------------------------
-    1. Create a new account.
-    2. Account login. 
-    ------------------------''')
-
-    choice = int(input(f"Please choose an option: "))
-    try:
-        if choice == 1:
-            account_params = create_new_account()
-            new_bank_account = BankAccount(None, *account_params, None, 0)
-            new_bank_account.create_user_if_doesnt_exist(*account_params)
-
-        elif choice == 2:
-            bank_account = int(input("Insert account number: "))
-            pin_code = int(input("Insert pin code: "))
-            logged_account = BankAccount.account_login(bank_account, pin_code)
-            if not logged_account:
-                print("User isn't logged in")
-            else:
-                user_actions_inside_account = int(input(f"\n1. Withdraw 2. Deposit. 3. Close account"))
-                if user_actions_inside_account == 1:
-                    amount_to_withdraw = float(input("Enter amount to withdraw: "))
-                    logged_account.withdraw(amount_to_withdraw)
-
-                elif user_actions_inside_account == 2:
-                    deposit_amount = float(input("Choose amount to deposit: "))
-                    logged_account.deposit(deposit_amount)
-
-                elif user_actions_inside_account == 3:
-                    account_number = int(input("Insert account number to close: "))
-                    logged_account.account_closure(account_number)
-    except ValueError:
-        print("Error")
-
-user_menu()
 create_table()
-
